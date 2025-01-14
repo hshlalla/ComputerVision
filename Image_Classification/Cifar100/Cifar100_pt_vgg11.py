@@ -5,8 +5,7 @@ from torchvision import datasets
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 from models import vgg
-
-ngpu = 2                
+ngpu = 1                
 device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
 
 def data_loader(data_dir,
@@ -74,13 +73,13 @@ test_loader = data_loader(data_dir='./data',
                               test=True)
 
 num_classes = 100
-num_epochs = 2
+num_epochs = 20
 
 
 
 
-batch_size = 16
-learning_rate = 0.005
+batch_size = 4096
+learning_rate = 0.001
 
 model = vgg.VGG11(ngpu,num_classes).to(device)
 # Handle multi-GPU if desired
@@ -89,44 +88,71 @@ if (device.type == 'cuda') and (ngpu > 1):
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.005, momentum = 0.9)  
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay = 0.005)  
 
 
 # Train the model
 total_step = len(train_loader)
-
 for epoch in range(num_epochs):
-    for i, (images, labels) in enumerate(train_loader):  
+    # Training phase
+    model.train()  # Set model to training mode
+    train_correct = 0
+    train_total = 0
+    train_loss = 0.0
+
+    for i, (images, labels) in enumerate(train_loader):
         # Move tensors to the configured device
         images = images.to(device)
         labels = labels.to(device)
-        
+
         # Forward pass
         outputs = model(images)
         loss = criterion(outputs, labels)
-        
+
         # Backward and optimize
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-    print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' 
-                   .format(epoch+1, num_epochs, i+1, total_step, loss.item()))
-            
-    # Validation
+        # Accumulate training loss and accuracy
+        train_loss += loss.item()
+        _, predicted = torch.max(outputs.data, 1)
+        train_total += labels.size(0)
+        train_correct += (predicted == labels).sum().item()
+        
+    train_accuracy = 100 * train_correct / train_total
+    train_loss /= len(train_loader)
+
+    print('Epoch [{}/{}], Training Loss: {:.4f}, Training Accuracy: {:.2f}%'
+          .format(epoch + 1, num_epochs, train_loss, train_accuracy))
+
+    # Validation phase
+    model.eval()  # Set model to evaluation mode
+    val_correct = 0
+    val_total = 0
+    val_loss = 0.0
+
     with torch.no_grad():
-        correct = 0
-        total = 0
         for images, labels in valid_loader:
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)
+
+            loss = criterion(outputs, labels)
+            val_loss += loss.item()
+
             _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            val_total += labels.size(0)
+            val_correct += (predicted == labels).sum().item()
+
             del images, labels, outputs
-    
-        print('Accuracy of the network on the {} validation images: {} %'.format(5000, 100 * correct / total)) 
+
+    val_accuracy = 100 * val_correct / val_total
+    val_loss /= len(valid_loader)
+
+    print('Validation Loss: {:.4f}, Validation Accuracy: {:.2f}%'
+          .format(val_loss, val_accuracy))
+
 
 if __name__ == "__main__":
     pass
