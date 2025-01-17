@@ -1,0 +1,2 @@
+1. Hugging Face로 이미지 분류 AI 만들기: ResNet-18 모델 학습 가이드
+https://logbe1.tistory.com/entry/Hugging-Face%EB%A1%9C-%EC%9D%B4%EB%AF%B8%EC%A7%80-%EB%B6%84%EB%A5%98-AI-%EB%A7%8C%EB%93%A4%EA%B8%B0-ResNet-18-%EB%AA%A8%EB%8D%B8-%ED%95%99%EC%8A%B5-%EA%B0%80%EC%9D%B4%EB%93%9C
